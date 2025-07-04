@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>农耘智策 AI 助手</title>
+    <link href="static/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
+    <link href="static/css/sb-admin-2.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        #chat-box { height: 60vh; overflow-y: auto; display: flex; flex-direction: column; }
+        .chat-message { padding: 0.75rem 1.25rem; border-radius: 1.25rem; max-width: 75%; word-wrap: break-word; }
+        .user-message { background-color: #1cc88a; color: white; align-self: flex-end; }
+        .ai-message { background-color: #f8f9fc; border: 1px solid #e3e6f0; color: #5a5c69; align-self: flex-start; }
+        .chat-message + .chat-message { margin-top: 1rem; }
+        .chat-image { max-width: 100%; max-height: 200px; border-radius: 0.5rem; cursor: pointer; }
+        /* 正在输入的动画样式 */
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            background-color: #999;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 1px;
+            animation: blink 1.4s infinite both;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: .2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: .4s; }
+        @keyframes blink {
+            0% { opacity: .2; }
+            20% { opacity: 1; }
+            100% { opacity: .2; }
+        }
+        /* 侧边栏选中项样式 */
+        .sidebar .nav-item.active .nav-link {
+            background-color: #4e73df;
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body id="page-top">
+    <div id="wrapper">
+        <!-- 侧边栏 -->
+        <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="/main">
+                <div class="sidebar-brand-icon">
+                    <i class="fas fa-seedling"></i>
+                </div>
+                <div class="sidebar-brand-text mx-3">农耘智策</div>
+            </a>
+            <hr class="sidebar-divider my-0">
+            
+            <div class="sidebar-heading mt-3">
+                功能模块
+            </div>
+
+            <li class="nav-item mode-selector-item active" data-mode="A" data-title="种植决策">
+                <a class="nav-link" href="#"><i class="fas fa-fw fa-tree"></i><span>A. 种植决策</span></a>
+            </li>
+            <li class="nav-item mode-selector-item" data-mode="B" data-title="病害诊断">
+                <a class="nav-link" href="#"><i class="fas fa-fw fa-first-aid"></i><span>B. 病害诊断</span></a>
+            </li>
+            <li class="nav-item mode-selector-item" data-mode="C" data-title="市场分析">
+                <a class="nav-link" href="#"><i class="fas fa-fw fa-chart-line"></i><span>C. 市场分析</span></a>
+            </li>
+            <li class="nav-item mode-selector-item" data-mode="D" data-title="产品推广">
+                <a class="nav-link" href="#"><i class="fas fa-fw fa-bullhorn"></i><span>D. 产品推广</span></a>
+            </li>
+            
+            <hr class="sidebar-divider d-none d-md-block">
+            <div class="text-center d-none d-md-inline mt-4"><button class="rounded-circle border-0" id="sidebarToggle"></button></div>
+        </ul>
+
+        <div id="content-wrapper" class="d-flex flex-column">
+            <div id="content">
+                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3"><i class="fa fa-bars"></i></button>
+                    <ul class="navbar-nav ml-auto">
+                        <li class="nav-item dropdown no-arrow">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">张妍 (项目负责人)</span>
+                                <img class="img-profile rounded-circle" src="static/img/undraw_profile.svg">
+                            </a>
+                            <!-- 【最终修改】添加登出下拉菜单 -->
+                            <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
+                                aria-labelledby="userDropdown">
+                                <a class="dropdown-item" href="#" id="logout-btn">
+                                    <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    退出登录
+                                </a>
+                            </div>
+                        </li>
+                    </ul>
+                </nav>
+
+                <div class="container-fluid">
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                            <h6 class="m-0 font-weight-bold text-primary" id="mode-title">种植决策</h6>
+                        </div>
+                        
+                        <div class="card-body" id="chat-box">
+                            <div class="chat-message ai-message">你好！我是农耘智策AI助手，你农业生产的好帮手。请选择一个功能模式，然后开始提问吧！</div>
+                        </div>
+
+                        <div class="card-footer">
+                            <form id="chat-form">
+                                <div class="input-group">
+                                    <textarea id="user-input" class="form-control" placeholder="请描述您的需求，例如：我这里的土有点干，适合种什么？" rows="1" style="resize: none;"></textarea>
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary" type="button" id="upload-image-btn" style="display: none;" title="上传图片进行分析">
+                                            <i class="fas fa-camera"></i>
+                                        </button>
+                                        <button class="btn btn-primary" type="submit" id="send-btn" title="发送">
+                                            <i class="fas fa-paper-plane"></i>
+                                        </button>
+                                    </div>
+                                    <input type="file" id="image-file-input" style="display: none;" accept="image/*">
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="static/vendor/jquery/jquery.min.js"></script>
+    <script src="static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="static/vendor/jquery-easing/jquery.easing.min.js"></script>
+    <script src="static/js/sb-admin-2.min.js"></script>
+
+    <script>
+    $(document).ready(function() {
+        // --- 全局变量 ---
+        let frontendContext = {};
+        let currentMode = 'A';
+        const modeSelectorItems = $('.mode-selector-item'); 
+        const modeTitle = $('#mode-title');
+        const chatBox = $('#chat-box');
+        const userInput = $('#user-input');
+        const chatForm = $('#chat-form');
+        const uploadBtn = $('#upload-image-btn');
+        const imageFileInput = $('#image-file-input');
+        
+        const initialWelcomeMessage = chatBox.html();
+        let chatHistories = {
+            'A': initialWelcomeMessage,
+            'B': '',
+            'C': '',
+            'D': ''
+        };
+
+        // --- 模式切换逻辑 ---
+        modeSelectorItems.on('click', function(e) {
+            e.preventDefault();
+            const newMode = $(this).data('mode');
+            if (newMode === currentMode) return;
+
+            chatHistories[currentMode] = chatBox.html();
+            modeSelectorItems.removeClass('active');
+            $(this).addClass('active');
+            modeTitle.text($(this).data('title'));
+            currentMode = newMode;
+            chatBox.html(chatHistories[currentMode] || initialWelcomeMessage);
+
+            if (currentMode === 'B' || currentMode === 'C') {
+                uploadBtn.show();
+            } else {
+                uploadBtn.hide();
+            }
+            scrollToBottom(true);
+        });
+        
+        // --- 【最终修改】添加登出逻辑 ---
+        $('#logout-btn').on('click', function(e) {
+            e.preventDefault(); // 阻止a标签的默认跳转行为
+            window.location.href = '/'; // 重定向到登录页面
+        });
+
+        // --- 中断滚动动画逻辑 ---
+        chatBox.on('wheel touchstart', function() {
+            chatBox.stop();
+        });
+
+        // --- 图片处理与表单提交流程 ---
+        function displayImagePreview(file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const imageUrl = event.target.result;
+                const previewHtml = `
+                    <div id="image-preview-container" class="px-3 pt-2 text-right">
+                        <div class="d-inline-block position-relative">
+                            <img src="${imageUrl}" class="chat-image" style="max-height: 100px;" alt="Image Preview">
+                            <button type="button" class="close position-absolute" style="top: -5px; right: -5px; background: white; border-radius: 50%; padding: 0.1rem 0.3rem;" aria-label="Close" id="remove-image-btn">
+                                <span aria-hidden="true">×</span>
+                            </button>
+                        </div>
+                    </div>`;
+                $('#chat-form').before(previewHtml);
+                $('#remove-image-btn').on('click', function() {
+                    $('#image-preview-container').remove();
+                    imageFileInput.val('');
+                });
+            }
+            reader.readAsDataURL(file);
+        }
+        
+        uploadBtn.on('click', function() { imageFileInput.click(); });
+        imageFileInput.on('change', function(e) {
+            $('#image-preview-container').remove();
+            if (e.target.files && e.target.files[0]) {
+                displayImagePreview(e.target.files[0]);
+            }
+        });
+
+        chatForm.on('submit', function(e) {
+            e.preventDefault();
+            const userText = userInput.val().trim();
+            const imageFile = imageFileInput[0].files[0];
+            if (!userText && !imageFile) return;
+
+            if(chatBox.html() === initialWelcomeMessage){
+                chatBox.empty();
+            }
+
+            let messageHtml = '';
+            const previewContainer = $('#image-preview-container');
+            if (userText && previewContainer.length > 0) {
+                const imageUrl = previewContainer.find('img').attr('src');
+                messageHtml = `<div class="chat-message user-message d-flex flex-column align-items-end"><div>${userText}</div><img src="${imageUrl}" class="chat-image mt-2" alt="Sent Image"></div>`;
+            } else if (userText) {
+                messageHtml = `<div class="chat-message user-message">${userText}</div>`;
+            } else if (previewContainer.length > 0) {
+                 const imageUrl = previewContainer.find('img').attr('src');
+                 messageHtml = `<div class="chat-message user-message"><img src="${imageUrl}" class="chat-image" alt="Sent Image"></div>`;
+            } else { return; }
+            
+            userInput.val('').css('height', 'auto');
+            previewContainer.remove();
+            imageFileInput.val('');
+            chatBox.append(messageHtml);
+            scrollToBottom();
+            chatWithAPI(userText, currentMode, imageFile);
+        });
+
+        // --- API调用与加载动画处理 ---
+        function chatWithAPI(userInputText, currentMode, imageFile) {
+            const typingIndicator = $('<div class="chat-message ai-message typing-indicator"><span></span><span></span><span></span></div>');
+            chatBox.append(typingIndicator);
+            scrollToBottom();
+            const formData = new FormData();
+            formData.append('userInput', userInputText);
+            formData.append('currentMode', currentMode);
+            if (imageFile) {
+                formData.append('image', imageFile);
+            }
+            fetch('/api/chat', { method: 'POST', body: formData })
+            .then(response => {
+                if (!response.ok) throw new Error(`网络响应错误: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                if (data.updatedContext) {
+                    frontendContext = data.updatedContext;
+                    console.log("前端共享记忆已同步更新:", frontendContext);
+                }
+                const aiResponseText = data.text || "AI没有返回文本内容。";
+                const aiImageUrl = data.imageUrl;
+                const renderedHtml = marked.parse(aiResponseText, { gfm: true, breaks: true, mangle: false, headerIds: false });
+                let responseHtml = `<div class="chat-message ai-message">${renderedHtml}`;
+                if (aiImageUrl) {
+                    responseHtml += `<br><img src="${aiImageUrl}" class="chat-image mt-2" alt="Generated Image">`;
+                }
+                responseHtml += `</div>`;
+                const messageElement = $(responseHtml);
+                messageElement.find('table').addClass('table table-bordered table-striped table-sm');
+                typingIndicator.replaceWith(messageElement);
+                scrollToBottom();
+            })
+            .catch(error => {
+                const errorHtml = `<div class="chat-message ai-message" style="color: red;">抱歉，请求失败: ${error.message}</div>`;
+                typingIndicator.replaceWith(errorHtml);
+                scrollToBottom();
+            });
+        }
+
+        // --- 滚动函数 ---
+        function scrollToBottom(instant = false) {
+            const chatBoxEl = chatBox[0];
+            if (instant) {
+                chatBoxEl.scrollTop = chatBoxEl.scrollHeight;
+                return;
+            }
+            const pixelsPerSecond = 800;
+            const distance = chatBoxEl.scrollHeight - chatBoxEl.clientHeight - chatBoxEl.scrollTop;
+            if (distance <= 0) return;
+            const duration = (distance / pixelsPerSecond) * 1000;
+            chatBox.stop().animate({ scrollTop: chatBoxEl.scrollHeight }, duration);
+        }
+
+        userInput.on('input', function () {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+
+        userInput.on('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                chatForm.submit();
+            }
+        });
+    });
+    </script>
+
+</body>
+</html>
