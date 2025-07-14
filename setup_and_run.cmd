@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 >nul
 
-@echo off
-
-:: 权限自提升模块
+:: ============================================================================
+:: 权限自提升模块 - 自动请求管理员权限
+:: ============================================================================
 >nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
 if '%errorlevel%' NEQ '0' (
     echo 正在请求管理员权限，请在弹出的窗口中点击“是”...
@@ -21,10 +21,9 @@ if '%errorlevel%' NEQ '0' (
     pushd "%CD%"
     CD /D "%~dp0"
 
-:: 解决乱码
-chcp 65001 >nul
-
+:: ============================================================================
 :: 主要逻辑开始
+:: ============================================================================
 setlocal
 echo.
 echo *** 成功获取管理员权限，脚本开始执行... ***
@@ -65,22 +64,35 @@ echo Python 安装完成！
 :install_requirements
 echo.
 echo === 步骤 3: 正在从 %REQUIREMENTS_FILE% 安装依赖库... ===
-py -%PYTHON_VERSION% -m pip install -r %REQUIREMENTS_FILE%
-if %errorlevel% neq 0 (echo 依赖库安装失败！ & goto end)
+py -%PYTHON_VERSION% -m pip install -r %REQUIREMENTS_FILE% >nul
+if %errorlevel% neq 0 (
+    echo.
+    echo *** 错误: 依赖库安装失败！请检查网络或 requirements.txt 文件。 ***
+    goto end
+)
 echo 依赖库安装完成！
 
-:: 4. 启动程序并打开浏览器
+:: 4. 启动主程序并自动打开浏览器
 echo.
 echo === 步骤 4: 正在启动应用程序 %MAIN_SCRIPT%... ===
 echo.
-echo 正在尝试打开浏览器访问 %APP_URL% ...
+
+:: 第一步：在一个新的命令窗口中启动 Flask 服务器。
+start "Flask Server" py -%PYTHON_VERSION% %MAIN_SCRIPT%
+
+:: 第二步：等待 5 秒钟，给服务器足够的时间来启动。
+echo 正在等待服务器启动 (5秒)...
+timeout /t 5 /nobreak >nul
+
+:: 第三步：现在再打开浏览器。
+echo 正在打开浏览器访问 %APP_URL% ...
 start "" %APP_URL%
 
 echo.
-echo 启动 Flask 服务器... (您可以在此窗口查看日志, 按 CTRL+C 停止)
-py -%PYTHON_VERSION% %MAIN_SCRIPT%
+echo 操作完成！Flask 服务器正在一个新窗口中运行。
+echo 您可以关闭这个脚本窗口，服务器将继续运行。
+echo 要停止服务器，请关闭标题为 "Flask Server" 的那个新窗口。
 
 :end
 echo.
-echo 脚本执行完毕。
 pause
