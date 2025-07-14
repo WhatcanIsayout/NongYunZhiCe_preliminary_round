@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# 强制规则：对于批处理文件，总是使用 Windows 换行符 (CRLF)
+*.cmd  text eol=crlf
+*.bat  text eol=crlf
